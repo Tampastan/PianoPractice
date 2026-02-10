@@ -194,6 +194,12 @@ body {
     font-size: 13px;
 }
 
+.btn-block {
+    width: 100%;
+    padding: 15px;
+    font-size: 16px;
+}
+
 /* 统计卡片 */
 .stats-summary {
     text-align: center;
@@ -460,6 +466,150 @@ tr:hover {
     margin-top: 20px;
 }
 
+/* 登录状态 */
+.auth-status {
+    margin-top: auto;
+    padding: 15px;
+}
+
+.status-badge {
+    padding: 8px 12px;
+    border-radius: 5px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+.status-badge.readonly {
+    background-color: rgba(255, 152, 0, 0.2);
+    color: #ff9800;
+    border: 1px solid #ff9800;
+}
+
+.status-badge.admin {
+    background-color: rgba(76, 175, 80, 0.2);
+    color: #4caf50;
+    border: 1px solid #4caf50;
+}
+
+/* 只读模式隐藏元素 */
+.admin-only {
+    display: none;
+}
+
+body.logged-in .admin-only {
+    display: block;
+}
+
+body.logged-in .admin-only-hide {
+    display: none;
+}
+
+body.logged-in table th.admin-only {
+    display: table-cell;
+}
+
+/* 提示框 */
+.notice-box {
+    padding: 15px 20px;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.notice-box.warning {
+    background-color: rgba(255, 152, 0, 0.1);
+    border: 1px solid #ff9800;
+    color: #ffb74d;
+}
+
+.notice-box a {
+    color: #64b5f6;
+    text-decoration: underline;
+}
+
+.notice-box a:hover {
+    color: #90caf9;
+}
+
+/* 登录页面 */
+.login-container {
+    max-width: 500px;
+    margin: 50px auto;
+}
+
+.login-box {
+    background-color: var(--secondary-color);
+    padding: 40px;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.login-box.success {
+    border: 2px solid #4caf50;
+}
+
+.login-description {
+    margin-bottom: 20px;
+    color: #aaa;
+    font-size: 14px;
+}
+
+.login-features {
+    list-style: none;
+    margin-bottom: 30px;
+    padding-left: 0;
+}
+
+.login-features li {
+    padding: 8px 0;
+    font-size: 14px;
+}
+
+.login-password {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+    background-color: #1e1e1e;
+    color: var(--text-color);
+    border: 2px solid var(--border-color);
+    border-radius: 5px;
+    margin-bottom: 20px;
+}
+
+.login-password:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.error-message {
+    margin-top: 15px;
+    padding: 10px;
+    background-color: rgba(244, 67, 54, 0.1);
+    border: 1px solid #f44336;
+    border-radius: 5px;
+    color: #ef5350;
+    font-size: 14px;
+}
+
+/* 设置页面只读提示 */
+body:not(.logged-in) .option-item input {
+    pointer-events: none;
+    opacity: 0.6;
+}
+
+body:not(.logged-in) .option-item .btn-icon {
+    display: none;
+}
+
+body:not(.logged-in) .option-item {
+    cursor: default;
+}
+
+body:not(.logged-in) .option-item .drag-handle {
+    display: none;
+}
+
 /* 响应式 */
 @media (max-width: 1024px) {
     .settings-container {
@@ -474,11 +624,36 @@ tr:hover {
     
     .sidebar {
         width: 100%;
+        padding: 15px;
     }
     
     .nav-menu {
         flex-direction: row;
         overflow-x: auto;
+        gap: 5px;
+    }
+    
+    .nav-btn {
+        padding: 10px 15px;
+        font-size: 13px;
+        white-space: nowrap;
+    }
+    
+    .logo h1 {
+        font-size: 20px;
+        margin-bottom: 15px;
+    }
+    
+    .main-content {
+        padding: 20px 15px;
+    }
+    
+    .page-title {
+        font-size: 24px;
+    }
+    
+    .timer-display {
+        font-size: 42px;
     }
     
     .charts-container {
@@ -487,5 +662,58 @@ tr:hover {
     
     .data-management {
         grid-template-columns: 1fr;
+    }
+    
+    .login-box {
+        padding: 30px 20px;
+    }
+    
+    .status-badge {
+        font-size: 12px;
+        padding: 6px 10px;
+    }
+    
+    .auth-status {
+        padding: 10px;
+    }
+    
+    table {
+        font-size: 13px;
+    }
+    
+    th, td {
+        padding: 8px;
+    }
+    
+    .stats-cards {
+        grid-template-columns: 1fr;
+    }
+    
+    .action-buttons {
+        flex-wrap: wrap;
+    }
+    
+    .btn {
+        font-size: 13px;
+        padding: 10px 18px;
+    }
+}
+
+@media (max-width: 480px) {
+    .practice-form {
+        padding: 0 10px;
+    }
+    
+    .timer-display {
+        font-size: 36px;
+    }
+    
+    .modal-content {
+        width: 95%;
+        padding: 20px;
+    }
+    
+    .login-container {
+        margin: 20px auto;
     }
 }
