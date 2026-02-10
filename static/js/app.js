@@ -7,6 +7,22 @@ let pauseCount = 0;
 let isRunning = false;
 let isLoggedIn = false;
 
+// 辅助函数：获取本地日期字符串 YYYY-MM-DD
+function getLocalDateString(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+// 辅助函数：获取本地时间字符串 HH:MM:SS
+function getLocalTimeString(date) {
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    return `${hours}:${minutes}:${seconds}`;
+}
+
 // 页面加载完成后初始化
 document.addEventListener('DOMContentLoaded', async () => {
     await checkLoginStatus();
@@ -20,7 +36,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateUIBasedOnAuth();
 });
 
-// 登录功能
+// ==================== 登录功能 ====================
+
 async function checkLoginStatus() {
     try {
         const response = await fetch('/api/check-login');
@@ -134,7 +151,8 @@ async function requireLogin(action) {
     return true;
 }
 
-// 导航
+// ==================== 导航 ====================
+
 function initNavigation() {
     document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -167,7 +185,8 @@ function showPage(pageName) {
     }
 }
 
-// 设置管理
+// ==================== 设置管理 ====================
+
 async function loadSettings() {
     const response = await fetch('/api/settings');
     settings = await response.json();
@@ -207,7 +226,9 @@ async function saveSettings(key, value) {
     });
     await loadSettings();
 }
-// 计时器
+
+// ==================== 计时器 ====================
+
 function initTimer() {
     document.getElementById('start-btn').addEventListener('click', startTimer);
     document.getElementById('pause-btn').addEventListener('click', pauseTimer);
@@ -305,9 +326,9 @@ async function savePracticeSession() {
     const startDateTime = new Date(now - elapsedSeconds * 1000);
     
     const data = {
-        date: now.toISOString().split('T')[0],
-        start_time: startDateTime.toTimeString().split(' ')[0],
-        end_time: now.toTimeString().split(' ')[0],
+        date: getLocalDateString(now),
+        start_time: getLocalTimeString(startDateTime),
+        end_time: getLocalTimeString(now),
         duration: elapsedSeconds,
         collection: document.getElementById('collection').value,
         piece: document.getElementById('piece').value,
@@ -339,7 +360,8 @@ async function savePracticeSession() {
     }
 }
 
-// 今日统计
+// ==================== 今日统计 ====================
+
 async function loadTodayStats() {
     const response = await fetch('/api/stats/today');
     const stats = await response.json();
@@ -375,7 +397,7 @@ async function loadTodayStatsPage() {
     const stats = await response.json();
     
     const minutes = Math.floor(stats.duration / 60);
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString(new Date());
     
     document.getElementById('today-stats-page').innerHTML = `
         <h3 style="text-align: center; margin-bottom: 15px;">📅 今日统计 (${today})</h3>
@@ -395,7 +417,9 @@ async function loadTodayStatsPage() {
         </div>
     `;
 }
-// 练习历史
+
+// ==================== 练习历史 ====================
+
 function initFilters() {
     document.getElementById('date-range').addEventListener('change', loadHistory);
     document.getElementById('collection-filter').addEventListener('change', loadHistory);
@@ -443,7 +467,7 @@ function showAddRecordDialog() {
     document.getElementById('dialog-title').textContent = '新增练习记录';
     document.getElementById('record-form').reset();
     document.getElementById('record-id').value = '';
-    document.getElementById('record-date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('record-date').value = getLocalDateString(new Date());
     document.getElementById('record-dialog').classList.add('show');
 }
 
@@ -561,7 +585,8 @@ document.getElementById('record-form').addEventListener('submit', async (e) => {
     }
 });
 
-// 数据统计
+// ==================== 数据统计 ====================
+
 async function loadStats() {
     const days = document.getElementById('stats-period').value;
     
@@ -600,7 +625,8 @@ async function loadStats() {
 
 document.getElementById('stats-period').addEventListener('change', loadStats);
 
-// 设置页面
+// ==================== 设置页面 ====================
+
 function loadSettingsPage() {
     renderOptionsWithDrag('collections', settings.collections || []);
     renderOptionsWithDrag('pieces', settings.pieces || []);
@@ -737,7 +763,8 @@ function deleteOption(key, index) {
     }
 }
 
-// 数据导入导出
+// ==================== 数据导入导出 ====================
+
 function exportData() {
     window.location.href = '/api/export';
 }
