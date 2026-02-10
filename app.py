@@ -12,6 +12,7 @@ import matplotlib.dates as mdates
 import base64
 import shutil
 from functools import wraps
+import pytz
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-very-secret-key-change-this-in-production-12345'
@@ -20,11 +21,22 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
 
 PASSWORD = '7777'
 
+# 设置时区为中国标准时间（UTC+8）
+TIMEZONE = pytz.timezone('Asia/Shanghai')
+
 plt.rcParams['font.sans-serif'] = ['SimHei', 'DejaVu Sans', 'Arial Unicode MS']
 plt.rcParams['axes.unicode_minus'] = False
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DB_PATH = os.path.join(BASE_DIR, 'piano_practice.db')
+
+def get_local_now():
+    """获取本地时间的当前时间"""
+    return datetime.now(TIMEZONE)
+
+def get_local_today():
+    """获取本地时间的今天日期字符串 YYYY-MM-DD"""
+    return get_local_now().strftime('%Y-%m-%d')
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
@@ -149,7 +161,7 @@ def get_sessions():
         days = request.args.get('days', 7, type=int)
         collection = request.args.get('collection', '')
         
-        start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+        start_date = (get_local_now() - timedelta(days=days)).strftime('%Y-%m-%d')
         
         conn = get_db()
         cursor = conn.cursor()
@@ -235,8 +247,9 @@ def delete_session(session_id):
 
 @app.route('/api/stats/today', methods=['GET'])
 def get_today_stats():
+    """获取今日统计 - 使用本地时区"""
     try:
-        today = datetime.now().strftime('%Y-%m-%d')
+        today = get_local_today()  # 使用本地时间的今天
         conn = get_db()
         cursor = conn.cursor()
         
@@ -259,9 +272,10 @@ def get_today_stats():
 
 @app.route('/api/stats/period', methods=['GET'])
 def get_period_stats():
+    """获取周期统计 - 使用本地时区"""
     try:
         days = request.args.get('days', 30, type=int)
-        start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+        start_date = (get_local_now() - timedelta(days=days)).strftime('%Y-%m-%d')
         
         conn = get_db()
         cursor = conn.cursor()
@@ -276,7 +290,7 @@ def get_period_stats():
         cursor.execute('SELECT DISTINCT date FROM practice_sessions ORDER BY date DESC')
         dates = [row[0] for row in cursor.fetchall()]
         consecutive = 0
-        today = datetime.now().date()
+        today = get_local_now().date()
         for i in range(len(dates)):
             date = datetime.strptime(dates[i], '%Y-%m-%d').date()
             expected_date = today - timedelta(days=i)
@@ -299,7 +313,7 @@ def get_period_stats():
 def get_chart(chart_type):
     try:
         days = request.args.get('days', 30, type=int)
-        start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+        start_date = (get_local_now() - timedelta(days=days)).strftime('%Y-%m-%d')
         
         conn = get_db()
         cursor = conn.cursor()
@@ -369,7 +383,7 @@ def export_data():
         if not os.path.exists(DB_PATH):
             return jsonify({'error': '数据库文件不存在'}), 404
         
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        timestamp = get_local_now().strftime('%Y%m%d_%H%M%S')
         filename = f'piano_practice_backup_{timestamp}.db'
         
         return send_file(
@@ -386,7 +400,7 @@ def export_data():
             memory_file = BytesIO(db_data)
             memory_file.seek(0)
             
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            timestamp = get_local_now().strftime('%Y%m%d_%H%M%S')
             filename = f'piano_practice_backup_{timestamp}.db'
             
             return send_file(
@@ -412,7 +426,7 @@ def import_data():
         return jsonify({'success': False, 'error': '只支持.db文件'}), 400
     
     try:
-        backup_filename = f'piano_practice_backup_{datetime.now().strftime("%Y%m%d_%H%M%S")}.db'
+        backup_filename = f'piano_practice_backup_{get_local_now().strftime("%Y%m%d_%H%M%S")}.db'
         backup_path = os.path.join(BASE_DIR, backup_filename)
         shutil.copy2(DB_PATH, backup_path)
         
