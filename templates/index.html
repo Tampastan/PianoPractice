@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>钢琴练习进度追踪器</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- 侧边栏 -->
+        <aside class="sidebar">
+            <div class="logo">
+                <h1>🎹 钢琴练习</h1>
+            </div>
+            <nav class="nav-menu">
+                <button class="nav-btn active" data-page="practice">开始练习</button>
+                <button class="nav-btn" data-page="history">练习历史</button>
+                <button class="nav-btn" data-page="stats">数据统计</button>
+                <button class="nav-btn" data-page="settings">设置</button>
+            </nav>
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <!-- 练习页面 -->
+            <div id="practice-page" class="page active">
+                <h2 class="page-title">今日练习</h2>
+                
+                <div class="practice-form">
+                    <div class="form-group">
+                        <label>练习曲集:</label>
+                        <input type="text" id="collection" list="collections-list" required>
+                        <datalist id="collections-list"></datalist>
+                    </div>
+                    <div class="form-group">
+                        <label>练习曲目:</label>
+                        <input type="text" id="piece" list="pieces-list" required>
+                        <datalist id="pieces-list"></datalist>
+                    </div>
+                    <div class="form-group">
+                        <label>小节段落:</label>
+                        <input type="text" id="section" list="sections-list" required>
+                        <datalist id="sections-list"></datalist>
+                    </div>
+                    <div class="form-group">
+                        <label>BPM:</label>
+                        <input type="text" id="bpm" required>
+                    </div>
+                    <div class="form-group">
+                        <label>练习类型:</label>
+                        <select id="practice-type"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>练习笔记:</label>
+                        <textarea id="notes" rows="4"></textarea>
+                    </div>
+                </div>
+
+                <div class="timer-container">
+                    <div class="timer-display" id="timer">00:00:00</div>
+                    <div class="pause-count">暂停次数: <span id="pause-count">0</span></div>
+                </div>
+
+                <div class="timer-controls">
+                    <button id="start-btn" class="btn btn-primary">开始练习</button>
+                    <button id="pause-btn" class="btn btn-secondary" disabled>暂停</button>
+                    <button id="stop-btn" class="btn btn-success" disabled>结束并保存</button>
+                </div>
+
+                <div id="today-stats" class="stats-summary"></div>
+            </div>
+
+            <!-- 练习历史页面 -->
+            <div id="history-page" class="page">
+                <h2 class="page-title">练习历史</h2>
+                
+                <div id="today-history-stats" class="stats-cards"></div>
+
+                <div class="filters">
+                    <label>日期范围:
+                        <select id="date-range">
+                            <option value="7">最近7天</option>
+                            <option value="30">最近30天</option>
+                            <option value="90">最近3个月</option>
+                            <option value="10000">全部</option>
+                        </select>
+                    </label>
+                    <label>曲集:
+                        <select id="collection-filter">
+                            <option value="">全部</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div class="action-buttons">
+                    <button class="btn btn-success" onclick="showAddRecordDialog()">➕ 新增记录</button>
+                    <button class="btn btn-primary" onclick="editSelectedRecord()">✏️ 编辑选中</button>
+                    <button class="btn btn-danger" onclick="deleteSelectedRecords()">🗑️ 删除选中</button>
+                </div>
+
+                <div class="table-container">
+                    <table id="history-table">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" id="select-all"></th>
+                                <th>日期</th>
+                                <th>开始</th>
+                                <th>结束</th>
+                                <th>时长(分)</th>
+                                <th>曲集</th>
+                                <th>曲目</th>
+                                <th>段落</th>
+                                <th>BPM</th>
+                                <th>类型</th>
+                                <th>暂停</th>
+                                <th>备注</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 数据统计页面 -->
+            <div id="stats-page" class="page">
+                <h2 class="page-title">数据统计</h2>
+                
+                <div id="today-stats-page" class="stats-cards"></div>
+
+                <div class="filters">
+                    <label>统计周期:
+                        <select id="stats-period">
+                            <option value="7">1周</option>
+                            <option value="30" selected>1个月</option>
+                            <option value="90">3个月</option>
+                            <option value="180">6个月</option>
+                            <option value="365">12个月</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div id="period-stats" class="stats-cards"></div>
+
+                <div class="charts-container">
+                    <div class="chart-box">
+                        <img id="duration-chart" class="chart-image" alt="练习时长趋势">
+                    </div>
+                    <div class="chart-box">
+                        <img id="type-chart" class="chart-image" alt="练习类型分布">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 设置页面 -->
+            <div id="settings-page" class="page">
+                <h2 class="page-title">设置</h2>
+                
+                <div class="settings-container">
+                    <div class="settings-section">
+                        <h3>练习曲集</h3>
+                        <div id="collections-editor" class="options-editor sortable-list"></div>
+                        <button class="btn btn-primary btn-sm" onclick="addOption('collections')">+ 新增</button>
+                    </div>
+                    
+                    <div class="settings-section">
+                        <h3>练习曲目</h3>
+                        <div id="pieces-editor" class="options-editor sortable-list"></div>
+                        <button class="btn btn-primary btn-sm" onclick="addOption('pieces')">+ 新增</button>
+                    </div>
+                    
+                    <div class="settings-section">
+                        <h3>小节段落</h3>
+                        <div id="sections-editor" class="options-editor sortable-list"></div>
+                        <button class="btn btn-primary btn-sm" onclick="addOption('sections')">+ 新增</button>
+                    </div>
+                    
+                    <div class="settings-section">
+                        <h3>练习类型</h3>
+                        <div id="practice-types-editor" class="options-editor sortable-list"></div>
+                        <button class="btn btn-primary btn-sm" onclick="addOption('practice_types')">+ 新增</button>
+                    </div>
+
+                    <div class="settings-section full-width">
+                        <h3>数据管理</h3>
+                        <div class="data-management">
+                            <div class="management-item">
+                                <p>📤 <strong>导出数据</strong></p>
+                                <p class="description">将所有练习记录导出为备份文件</p>
+                                <button class="btn btn-success" onclick="exportData()">导出数据</button>
+                            </div>
+                            <div class="management-item">
+                                <p>📥 <strong>导入数据</strong></p>
+                                <p class="description">从备份文件导入数据（会覆盖现有数据）</p>
+                                <input type="file" id="import-file" accept=".db" style="display: none;">
+                                <button class="btn btn-warning" onclick="document.getElementById('import-file').click()">选择文件导入</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 编辑记录对话框 -->
+    <div id="record-dialog" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeRecordDialog()">&times;</span>
+            <h2 id="dialog-title">编辑练习记录</h2>
+            <form id="record-form">
+                <input type="hidden" id="record-id">
+                <div class="form-group">
+                    <label>日期:</label>
+                    <input type="date" id="record-date" required>
+                </div>
+                <div class="form-group">
+                    <label>开始时间:</label>
+                    <input type="time" id="record-start" required>
+                </div>
+                <div class="form-group">
+                    <label>结束时间:</label>
+                    <input type="time" id="record-end" required>
+                </div>
+                <div class="form-group">
+                    <label>时长(分钟):</label>
+                    <input type="number" id="record-duration" required>
+                </div>
+                <div class="form-group">
+                    <label>练习曲集:</label>
+                    <input type="text" id="record-collection" list="collections-list" required>
+                </div>
+                <div class="form-group">
+                    <label>练习曲目:</label>
+                    <input type="text" id="record-piece" list="pieces-list" required>
+                </div>
+                <div class="form-group">
+                    <label>小节段落:</label>
+                    <input type="text" id="record-section" list="sections-list" required>
+                </div>
+                <div class="form-group">
+                    <label>BPM:</label>
+                    <input type="text" id="record-bpm">
+                </div>
+                <div class="form-group">
+                    <label>练习类型:</label>
+                    <select id="record-type"></select>
+                </div>
+                <div class="form-group">
+                    <label>暂停次数:</label>
+                    <input type="number" id="record-pause" value="0">
+                </div>
+                <div class="form-group">
+                    <label>练习笔记:</label>
+                    <textarea id="record-notes" rows="4"></textarea>
+                </div>
+                <div class="modal-buttons">
+                    <button type="submit" class="btn btn-primary">保存</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeRecordDialog()">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
