@@ -5,18 +5,136 @@ let startTime = null;
 let elapsedSeconds = 0;
 let pauseCount = 0;
 let isRunning = false;
+let isLoggedIn = false;
 
 // 页面加载完成后初始化
 document.addEventListener('DOMContentLoaded', async () => {
+    await checkLoginStatus();
     await loadSettings();
     initNavigation();
     initTimer();
     initFilters();
     initImport();
+    initLogin();
     loadTodayStats();
+    updateUIBasedOnAuth();
 });
 
-// ==================== 导航 ====================
+// 登录功能
+async function checkLoginStatus() {
+    try {
+        const response = await fetch('/api/check-login');
+        const data = await response.json();
+        isLoggedIn = data.logged_in;
+        updateAuthUI();
+    } catch (error) {
+        console.error('检查登录状态失败:', error);
+        isLoggedIn = false;
+        updateAuthUI();
+    }
+}
+
+function updateAuthUI() {
+    if (isLoggedIn) {
+        document.body.classList.add('logged-in');
+        document.getElementById('login-status').textContent = '✅ 已登录';
+        document.getElementById('readonly-badge').style.display = 'none';
+        document.getElementById('admin-badge').style.display = 'block';
+        document.getElementById('login-form-container').style.display = 'none';
+        document.getElementById('logged-in-container').style.display = 'block';
+    } else {
+        document.body.classList.remove('logged-in');
+        document.getElementById('login-status').textContent = '🔒 登录';
+        document.getElementById('readonly-badge').style.display = 'block';
+        document.getElementById('admin-badge').style.display = 'none';
+        document.getElementById('login-form-container').style.display = 'block';
+        document.getElementById('logged-in-container').style.display = 'none';
+    }
+}
+
+function updateUIBasedOnAuth() {
+    const readonlyNotice = document.getElementById('readonly-notice');
+    if (readonlyNotice) {
+        readonlyNotice.style.display = isLoggedIn ? 'none' : 'block';
+    }
+    
+    const settingsNotice = document.getElementById('settings-readonly-notice');
+    if (settingsNotice) {
+        settingsNotice.style.display = isLoggedIn ? 'none' : 'block';
+    }
+}
+
+function initLogin() {
+    const loginForm = document.getElementById('login-form');
+    if (loginForm) {
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await handleLogin();
+        });
+    }
+}
+
+async function handleLogin() {
+    const password = document.getElementById('password-input').value;
+    const errorDiv = document.getElementById('login-error');
+    
+    try {
+        const response = await fetch('/api/login', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({password})
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            isLoggedIn = true;
+            updateAuthUI();
+            updateUIBasedOnAuth();
+            errorDiv.style.display = 'none';
+            document.getElementById('password-input').value = '';
+            alert('登录成功！现在拥有完整权限。');
+        } else {
+            errorDiv.textContent = data.message || '密码错误！';
+            errorDiv.style.display = 'block';
+            document.getElementById('password-input').value = '';
+            document.getElementById('password-input').focus();
+        }
+    } catch (error) {
+        errorDiv.textContent = '登录失败: ' + error.message;
+        errorDiv.style.display = 'block';
+    }
+}
+
+async function handleLogout() {
+    if (!confirm('确定要退出登录吗？')) {
+        return;
+    }
+    
+    try {
+        await fetch('/api/logout', {method: 'POST'});
+        isLoggedIn = false;
+        updateAuthUI();
+        updateUIBasedOnAuth();
+        alert('已退出登录');
+        showPage('practice');
+    } catch (error) {
+        alert('退出登录失败: ' + error.message);
+    }
+}
+
+async function requireLogin(action) {
+    if (!isLoggedIn) {
+        const doLogin = confirm('此操作需要登录。是否前往登录页面？');
+        if (doLogin) {
+            showPage('login');
+        }
+        return false;
+    }
+    return true;
+}
+
+// 导航
 function initNavigation() {
     document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -49,7 +167,7 @@ function showPage(pageName) {
     }
 }
 
-// ==================== 设置管理 ====================
+// 设置管理
 async function loadSettings() {
     const response = await fetch('/api/settings');
     settings = await response.json();
@@ -89,15 +207,16 @@ async function saveSettings(key, value) {
     });
     await loadSettings();
 }
-
-// ==================== 计时器 ====================
+// 计时器
 function initTimer() {
     document.getElementById('start-btn').addEventListener('click', startTimer);
     document.getElementById('pause-btn').addEventListener('click', pauseTimer);
     document.getElementById('stop-btn').addEventListener('click', stopTimer);
 }
 
-function startTimer() {
+async function startTimer() {
+    if (!await requireLogin('开始练习')) return;
+    
     if (!validateForm()) return;
     
     isRunning = true;
@@ -199,18 +318,28 @@ async function savePracticeSession() {
         notes: document.getElementById('notes').value
     };
     
-    const response = await fetch('/api/sessions', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(data)
-    });
-    
-    if (response.ok) {
-        alert(`练习记录已保存！\n时长: ${Math.floor(elapsedSeconds/60)} 分 ${elapsedSeconds%60} 秒`);
+    try {
+        const response = await fetch('/api/sessions', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        
+        if (response.status === 401) {
+            alert('保存失败：需要登录权限');
+            showPage('login');
+            return;
+        }
+        
+        if (response.ok) {
+            alert(`练习记录已保存！\n时长: ${Math.floor(elapsedSeconds/60)} 分 ${elapsedSeconds%60} 秒`);
+        }
+    } catch (error) {
+        alert('保存失败: ' + error.message);
     }
 }
 
-// ==================== 今日统计 ====================
+// 今日统计
 async function loadTodayStats() {
     const response = await fetch('/api/stats/today');
     const stats = await response.json();
@@ -266,8 +395,7 @@ async function loadTodayStatsPage() {
         </div>
     `;
 }
-
-// ==================== 练习历史 ====================
+// 练习历史
 function initFilters() {
     document.getElementById('date-range').addEventListener('change', loadHistory);
     document.getElementById('collection-filter').addEventListener('change', loadHistory);
@@ -284,7 +412,7 @@ async function loadHistory() {
     const tbody = document.getElementById('history-tbody');
     tbody.innerHTML = sessions.map(s => `
         <tr>
-            <td><input type="checkbox" class="record-checkbox" data-id="${s.id}"></td>
+            <td class="admin-only"><input type="checkbox" class="record-checkbox" data-id="${s.id}"></td>
             <td>${s.date}</td>
             <td>${s.start_time}</td>
             <td>${s.end_time}</td>
@@ -307,6 +435,11 @@ async function loadHistory() {
 }
 
 function showAddRecordDialog() {
+    if (!isLoggedIn) {
+        requireLogin('新增记录');
+        return;
+    }
+    
     document.getElementById('dialog-title').textContent = '新增练习记录';
     document.getElementById('record-form').reset();
     document.getElementById('record-id').value = '';
@@ -315,6 +448,8 @@ function showAddRecordDialog() {
 }
 
 async function editSelectedRecord() {
+    if (!await requireLogin('编辑记录')) return;
+    
     const selected = Array.from(document.querySelectorAll('.record-checkbox:checked'));
     if (selected.length === 0) {
         alert('请先选择要编辑的记录！');
@@ -350,6 +485,8 @@ async function editSelectedRecord() {
 }
 
 async function deleteSelectedRecords() {
+    if (!await requireLogin('删除记录')) return;
+    
     const selected = Array.from(document.querySelectorAll('.record-checkbox:checked'));
     if (selected.length === 0) {
         alert('请先选择要删除的记录！');
@@ -376,6 +513,13 @@ function closeRecordDialog() {
 document.getElementById('record-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     
+    if (!isLoggedIn) {
+        alert('需要登录权限');
+        closeRecordDialog();
+        showPage('login');
+        return;
+    }
+    
     const data = {
         date: document.getElementById('record-date').value,
         start_time: document.getElementById('record-start').value,
@@ -392,28 +536,32 @@ document.getElementById('record-form').addEventListener('submit', async (e) => {
     
     const id = document.getElementById('record-id').value;
     
-    if (id) {
-        await fetch(`/api/sessions/${id}`, {
-            method: 'PUT',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(data)
-        });
-        alert('记录已更新！');
-    } else {
-        await fetch('/api/sessions', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(data)
-        });
-        alert('记录已添加！');
+    try {
+        if (id) {
+            await fetch(`/api/sessions/${id}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            alert('记录已更新！');
+        } else {
+            await fetch('/api/sessions', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            alert('记录已添加！');
+        }
+        
+        closeRecordDialog();
+        loadHistory();
+        loadTodayHistoryStats();
+    } catch (error) {
+        alert('保存失败: ' + error.message);
     }
-    
-    closeRecordDialog();
-    loadHistory();
-    loadTodayHistoryStats();
 });
 
-// ==================== 数据统计 ====================
+// 数据统计
 async function loadStats() {
     const days = document.getElementById('stats-period').value;
     
@@ -452,7 +600,7 @@ async function loadStats() {
 
 document.getElementById('stats-period').addEventListener('change', loadStats);
 
-// ==================== 设置页面 ====================
+// 设置页面
 function loadSettingsPage() {
     renderOptionsWithDrag('collections', settings.collections || []);
     renderOptionsWithDrag('pieces', settings.pieces || []);
@@ -461,7 +609,6 @@ function loadSettingsPage() {
 }
 
 function renderOptionsWithDrag(key, options) {
-    // 转换key: practice_types -> practice-types
     const editorId = key.replace(/_/g, '-') + '-editor';
     const editor = document.getElementById(editorId);
     
@@ -480,7 +627,6 @@ function renderOptionsWithDrag(key, options) {
         </div>
     `).join('');
     
-    // 添加拖放事件
     initDragAndDrop(editor, key);
 }
 
@@ -533,6 +679,11 @@ function initDragAndDrop(container, key) {
 }
 
 function addOption(key) {
+    if (!isLoggedIn) {
+        requireLogin('添加选项');
+        return;
+    }
+    
     const value = prompt('请输入新选项:');
     if (value && value.trim()) {
         const options = settings[key] || [];
@@ -546,7 +697,9 @@ function addOption(key) {
     }
 }
 
-function updateOption(key, index, value) {
+async function updateOption(key, index, value) {
+    if (!isLoggedIn) return;
+    
     value = value.trim();
     if (!value) {
         alert('选项内容不能为空！');
@@ -562,10 +715,15 @@ function updateOption(key, index, value) {
     }
     
     options[index] = value;
-    saveSettings(key, options);
+    await saveSettings(key, options);
 }
 
 function deleteOption(key, index) {
+    if (!isLoggedIn) {
+        requireLogin('删除选项');
+        return;
+    }
+    
     const options = settings[key] || [];
     if (options.length <= 1) {
         alert('至少保留一个选项！');
@@ -579,13 +737,20 @@ function deleteOption(key, index) {
     }
 }
 
-// ==================== 数据导入导出 ====================
+// 数据导入导出
 function exportData() {
     window.location.href = '/api/export';
 }
 
 function initImport() {
     document.getElementById('import-file').addEventListener('change', async (e) => {
+        if (!isLoggedIn) {
+            alert('导入数据需要登录权限');
+            e.target.value = '';
+            showPage('login');
+            return;
+        }
+        
         const file = e.target.files[0];
         if (!file) return;
         
