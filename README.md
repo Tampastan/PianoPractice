@@ -1,8 +1,8 @@
-\# 钢琴练习进度追踪器 - Web版
+# 钢琴练习进度追踪器 - Web版
 
 
 
-\## 本地运行
+## 本地运行
 
 
 
@@ -11,6 +11,7 @@
 ```bash
 
 pip install -r requirements.txt
+
 
 
 
