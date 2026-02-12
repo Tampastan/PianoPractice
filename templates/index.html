@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>钢琴练习进度追踪器</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -145,8 +146,6 @@
                             <option value="7">1周</option>
                             <option value="30" selected>1个月</option>
                             <option value="90">3个月</option>
-                            <option value="180">6个月</option>
-                            <option value="365">12个月</option>
                         </select>
                     </label>
                 </div>
@@ -155,10 +154,35 @@
 
                 <div class="charts-container">
                     <div class="chart-box">
-                        <img id="duration-chart" class="chart-image" alt="练习时长趋势">
+                        <h3 style="margin-bottom: 15px;">每日打卡热力图</h3>
+                        <div id="heatmap-container" class="github-heatmap">
+                            <div id="heatmap-months" class="heatmap-months"></div>
+                            <div class="heatmap-body">
+                                <div class="heatmap-days">
+                                    <div class="day-label">Sun</div>
+                                    <div class="day-label">Mon</div>
+                                    <div class="day-label">Tue</div>
+                                    <div class="day-label">Wed</div>
+                                    <div class="day-label">Thu</div>
+                                    <div class="day-label">Fri</div>
+                                    <div class="day-label">Sat</div>
+                                </div>
+                                <div id="heatmap-grid" class="heatmap-grid"></div>
+                            </div>
+                            <div class="heatmap-legend">
+                                <span>Less</span>
+                                <div class="legend-item" data-level="0"></div>
+                                <div class="legend-item" data-level="1"></div>
+                                <div class="legend-item" data-level="2"></div>
+                                <div class="legend-item" data-level="3"></div>
+                                <div class="legend-item" data-level="4"></div>
+                                <span>More</span>
+                            </div>
+                        </div>
                     </div>
                     <div class="chart-box">
-                        <img id="type-chart" class="chart-image" alt="练习类型分布">
+                        <h3 style="margin-bottom: 15px;">练习时长趋势</h3>
+                        <canvas id="trend-chart" style="max-height: 300px;"></canvas>
                     </div>
                 </div>
             </div>
@@ -312,6 +336,8 @@
             </form>
         </div>
     </div>
+
+    <div id="heatmap-tooltip" class="heatmap-tooltip"></div>
 
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
