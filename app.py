@@ -4,12 +4,6 @@ import sqlite3
 import json
 import os
 from io import BytesIO
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-from matplotlib.figure import Figure
-import matplotlib.dates as mdates
-import base64
 import shutil
 from functools import wraps
 import pytz
@@ -20,22 +14,15 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
 
 PASSWORD = '7777'
-
-# 设置时区为中国标准时间（UTC+8）
 TIMEZONE = pytz.timezone('Asia/Shanghai')
-
-plt.rcParams['font.sans-serif'] = ['SimHei', 'DejaVu Sans', 'Arial Unicode MS']
-plt.rcParams['axes.unicode_minus'] = False
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DB_PATH = os.path.join(BASE_DIR, 'piano_practice.db')
 
 def get_local_now():
-    """获取本地时间的当前时间"""
     return datetime.now(TIMEZONE)
 
 def get_local_today():
-    """获取本地时间的今天日期字符串 YYYY-MM-DD"""
     return get_local_now().strftime('%Y-%m-%d')
 
 def get_db():
@@ -247,14 +234,13 @@ def delete_session(session_id):
 
 @app.route('/api/stats/today', methods=['GET'])
 def get_today_stats():
-    """获取今日统计 - 使用本地时区"""
     try:
-        today = get_local_today()  # 使用本地时间的今天
+        today = get_local_today()
         conn = get_db()
         cursor = conn.cursor()
         
         cursor.execute('''
-            SELECT COUNT(*), SUM(duration), AVG(pause_count)
+            SELECT COUNT(*), SUM(duration), SUM(pause_count)
             FROM practice_sessions
             WHERE date = ?
         ''', (today,))
@@ -265,14 +251,13 @@ def get_today_stats():
         return jsonify({
             'count': result[0] or 0,
             'duration': result[1] or 0,
-            'avg_pause': round(result[2] or 0, 1)
+            'total_pause': result[2] or 0
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/stats/period', methods=['GET'])
 def get_period_stats():
-    """获取周期统计 - 使用本地时区"""
     try:
         days = request.args.get('days', 30, type=int)
         start_date = (get_local_now() - timedelta(days=days)).strftime('%Y-%m-%d')
@@ -287,13 +272,29 @@ def get_period_stats():
         ''', (start_date,))
         total_stats = cursor.fetchone()
         
+        prev_start = (get_local_now() - timedelta(days=days*2)).strftime('%Y-%m-%d')
+        prev_end = (get_local_now() - timedelta(days=days+1)).strftime('%Y-%m-%d')
+        cursor.execute('''
+            SELECT SUM(duration)
+            FROM practice_sessions
+            WHERE date >= ? AND date <= ?
+        ''', (prev_start, prev_end))
+        prev_duration = cursor.fetchone()[0] or 0
+        
+        current_duration = total_stats[0] or 0
+        if prev_duration > 0:
+            change_percent = ((current_duration - prev_duration) / prev_duration) * 100
+        else:
+            change_percent = 100 if current_duration > 0 else 0
+        
         cursor.execute('SELECT DISTINCT date FROM practice_sessions ORDER BY date DESC')
         dates = [row[0] for row in cursor.fetchall()]
         consecutive = 0
-        today = get_local_now().date()
+        yesterday = (get_local_now() - timedelta(days=1)).date()
+        
         for i in range(len(dates)):
             date = datetime.strptime(dates[i], '%Y-%m-%d').date()
-            expected_date = today - timedelta(days=i)
+            expected_date = yesterday - timedelta(days=i)
             if date != expected_date:
                 break
             consecutive += 1
@@ -301,79 +302,80 @@ def get_period_stats():
         conn.close()
         
         return jsonify({
-            'total_duration': total_stats[0] or 0,
+            'total_duration': current_duration,
             'total_count': total_stats[1] or 0,
             'avg_pause': round(total_stats[2] or 0, 1),
-            'consecutive_days': consecutive
+            'consecutive_days': consecutive,
+            'change_percent': round(change_percent, 1)
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/charts/<chart_type>', methods=['GET'])
-def get_chart(chart_type):
+@app.route('/api/heatmap-data', methods=['GET'])
+def get_heatmap_data():
+    """获取当前年份全年热力图数据"""
     try:
-        days = request.args.get('days', 30, type=int)
-        start_date = (get_local_now() - timedelta(days=days)).strftime('%Y-%m-%d')
+        # 获取当前年份的1月1日到12月31日
+        current_year = get_local_now().year
+        start_date = f'{current_year}-01-01'
+        end_date = f'{current_year}-12-31'
         
         conn = get_db()
         cursor = conn.cursor()
         
-        fig = Figure(figsize=(10, 6), dpi=80)
-        fig.patch.set_facecolor('#1e1e1e')
-        ax = fig.add_subplot(111)
-        ax.set_facecolor('#1e1e1e')
+        cursor.execute('''
+            SELECT date, SUM(duration) as total_duration
+            FROM practice_sessions
+            WHERE date >= ? AND date <= ?
+            GROUP BY date
+            ORDER BY date
+        ''', (start_date, end_date))
         
-        if chart_type == 'duration_trend':
-            cursor.execute('''
-                SELECT date, SUM(duration) 
-                FROM practice_sessions 
-                WHERE date >= ?
-                GROUP BY date
-                ORDER BY date
-            ''', (start_date,))
-            
-            data = cursor.fetchall()
-            if data:
-                dates = [datetime.strptime(row[0], '%Y-%m-%d') for row in data]
-                durations = [row[1] / 60 for row in data]
-                
-                ax.plot(dates, durations, marker='o', linewidth=2, color='#1f77b4')
-                ax.fill_between(dates, durations, alpha=0.3, color='#1f77b4')
-                ax.set_title('练习时长趋势', color='white', fontsize=14)
-                ax.set_xlabel('日期', color='white')
-                ax.set_ylabel('分钟', color='white')
-                ax.grid(True, alpha=0.2, color='white')
-                ax.tick_params(colors='white')
-                ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
-                fig.autofmt_xdate()
+        data = {}
+        for row in cursor.fetchall():
+            data[row[0]] = row[1] / 60
         
-        elif chart_type == 'type_distribution':
-            cursor.execute('''
-                SELECT practice_type, COUNT(*) 
-                FROM practice_sessions 
-                WHERE date >= ?
-                GROUP BY practice_type
-            ''', (start_date,))
-            
-            data = cursor.fetchall()
-            if data:
-                labels = [row[0] for row in data]
-                sizes = [row[1] for row in data]
-                colors = ['#ff9999', '#66b3ff', '#99ff99', '#ffcc99', '#ff99cc']
-                
-                ax.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90,
-                       colors=colors, textprops={'color': 'white'})
-                ax.set_title('练习类型分布', color='white', fontsize=14)
+        conn.close()
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/trend-data', methods=['GET'])
+def get_trend_data():
+    """获取趋势对比数据"""
+    try:
+        days = request.args.get('days', 30, type=int)
+        
+        conn = get_db()
+        cursor = conn.cursor()
+        
+        current_start = (get_local_now() - timedelta(days=days)).strftime('%Y-%m-%d')
+        cursor.execute('''
+            SELECT date, SUM(duration) as total_duration
+            FROM practice_sessions
+            WHERE date >= ?
+            GROUP BY date
+            ORDER BY date
+        ''', (current_start,))
+        current_data = {row[0]: row[1] / 60 for row in cursor.fetchall()}
+        
+        prev_start = (get_local_now() - timedelta(days=days*2)).strftime('%Y-%m-%d')
+        prev_end = (get_local_now() - timedelta(days=days+1)).strftime('%Y-%m-%d')
+        cursor.execute('''
+            SELECT date, SUM(duration) as total_duration
+            FROM practice_sessions
+            WHERE date >= ? AND date <= ?
+            GROUP BY date
+            ORDER BY date
+        ''', (prev_start, prev_end))
+        prev_data = {row[0]: row[1] / 60 for row in cursor.fetchall()}
         
         conn.close()
         
-        buf = BytesIO()
-        fig.savefig(buf, format='png', facecolor='#1e1e1e', edgecolor='none', bbox_inches='tight')
-        buf.seek(0)
-        img_base64 = base64.b64encode(buf.read()).decode('utf-8')
-        plt.close(fig)
-        
-        return jsonify({'image': f'data:image/png;base64,{img_base64}'})
+        return jsonify({
+            'current': current_data,
+            'previous': prev_data
+        })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
