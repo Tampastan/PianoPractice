@@ -287,17 +287,41 @@ def get_period_stats():
         else:
             change_percent = 100 if current_duration > 0 else 0
         
+        # 修复连续打卡计算逻辑
         cursor.execute('SELECT DISTINCT date FROM practice_sessions ORDER BY date DESC')
         dates = [row[0] for row in cursor.fetchall()]
         consecutive = 0
-        yesterday = (get_local_now() - timedelta(days=1)).date()
         
-        for i in range(len(dates)):
-            date = datetime.strptime(dates[i], '%Y-%m-%d').date()
-            expected_date = yesterday - timedelta(days=i)
-            if date != expected_date:
-                break
-            consecutive += 1
+        if dates:
+            # 获取今天和昨天的日期
+            today = get_local_now().date()
+            yesterday = today - timedelta(days=1)
+            
+            # 将字符串日期转换为 date 对象
+            practice_dates = [datetime.strptime(d, '%Y-%m-%d').date() for d in dates]
+            
+            # 检查最近一次打卡是今天还是昨天
+            if practice_dates[0] == today or practice_dates[0] == yesterday:
+                # 从最近一次打卡日期开始计算连续天数
+                check_date = practice_dates[0]
+                
+                for practice_date in practice_dates:
+                    if practice_date == check_date:
+                        consecutive += 1
+                        check_date = check_date - timedelta(days=1)
+                    else:
+                        # 检查是否有跳过的日期
+                        while check_date > practice_date:
+                            # 有断签，停止计算
+                            break
+                            check_date = check_date - timedelta(days=1)
+                        
+                        if check_date == practice_date:
+                            consecutive += 1
+                            check_date = check_date - timedelta(days=1)
+                        else:
+                            # 断签了，停止
+                            break
         
         conn.close()
         
