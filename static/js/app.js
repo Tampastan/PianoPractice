@@ -324,11 +324,11 @@ function validateForm() {
 
 async function savePracticeSession() {
     const now = new Date();
-    // ✅ 用开始时间计算 startDateTime
+    // 用开始时间计算 startDateTime
     const startDateTime = new Date(now - elapsedSeconds * 1000);
     
     const data = {
-        // ✅ 关键修复：date 以开始时间的日期为准，而不是结束时间
+        // 以开始时间的日期为准
         date: getLocalDateString(startDateTime),
         start_time: getLocalTimeString(startDateTime),
         end_time: getLocalTimeString(now),
@@ -744,7 +744,7 @@ async function loadHeatmap() {
     });
 }
 
-// 趋势对比图
+// ✅ 修复：趋势对比图，全部使用本地时区日期，避免 UTC 偏移导致的日期错位
 async function loadTrendChart(days) {
     const response = await fetch(`/api/trend-data?days=${days}`);
     const data = await response.json();
@@ -753,24 +753,29 @@ async function loadTrendChart(days) {
     const currentData = [];
     const previousData = [];
     
+    // ✅ 当前周期：用本地日期逐天遍历
     const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(endDate.getDate() - days);
+    endDate.setHours(0, 0, 0, 0);
+    const startDate = new Date(endDate);
+    startDate.setDate(endDate.getDate() - days + 1);
     
     for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-        const dateStr = d.toISOString().split('T')[0];
+        // ✅ 使用 getLocalDateString 而非 toISOString，避免 UTC 偏移
+        const dateStr = getLocalDateString(d);
         const displayDate = `${d.getMonth() + 1}/${d.getDate()}`;
         labels.push(displayDate);
         currentData.push(data.current[dateStr] || 0);
     }
     
-    const prevEndDate = new Date();
-    prevEndDate.setDate(prevEndDate.getDate() - days - 1);
+    // ✅ 上一周期：同样使用本地日期
+    const prevEndDate = new Date(startDate);
+    prevEndDate.setDate(startDate.getDate() - 1);
     const prevStartDate = new Date(prevEndDate);
-    prevStartDate.setDate(prevEndDate.getDate() - days);
+    prevStartDate.setDate(prevEndDate.getDate() - days + 1);
     
     for (let d = new Date(prevStartDate); d <= prevEndDate; d.setDate(d.getDate() + 1)) {
-        const dateStr = d.toISOString().split('T')[0];
+        // ✅ 使用 getLocalDateString 而非 toISOString，避免 UTC 偏移
+        const dateStr = getLocalDateString(d);
         previousData.push(data.previous[dateStr] || 0);
     }
     
