@@ -66,7 +66,7 @@ def init_db():
     }
     
     for key, value in default_settings.items():
-        cursor.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', 
+        cursor.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
                       (key, value))
     
     conn.commit()
@@ -91,7 +91,6 @@ def login():
     try:
         data = request.json
         password = data.get('password', '')
-        
         if password == PASSWORD:
             session['logged_in'] = True
             session.permanent = True
@@ -147,25 +146,37 @@ def get_sessions():
     try:
         days = request.args.get('days', 7, type=int)
         collection = request.args.get('collection', '')
-        
-        start_date = (get_local_now() - timedelta(days=days)).strftime('%Y-%m-%d')
-        
+
         conn = get_db()
         cursor = conn.cursor()
-        
-        if collection and collection != '全部':
-            cursor.execute('''
-                SELECT * FROM practice_sessions 
-                WHERE date >= ? AND collection = ?
-                ORDER BY date DESC, start_time DESC
-            ''', (start_date, collection))
+
+        if days >= 36500:
+            if collection and collection != '全部':
+                cursor.execute('''
+                    SELECT * FROM practice_sessions
+                    WHERE collection = ?
+                    ORDER BY date DESC, start_time DESC
+                ''', (collection,))
+            else:
+                cursor.execute('''
+                    SELECT * FROM practice_sessions
+                    ORDER BY date DESC, start_time DESC
+                ''')
         else:
-            cursor.execute('''
-                SELECT * FROM practice_sessions 
-                WHERE date >= ?
-                ORDER BY date DESC, start_time DESC
-            ''', (start_date,))
-        
+            start_date = (get_local_now() - timedelta(days=days)).strftime('%Y-%m-%d')
+            if collection and collection != '全部':
+                cursor.execute('''
+                    SELECT * FROM practice_sessions
+                    WHERE date >= ? AND collection = ?
+                    ORDER BY date DESC, start_time DESC
+                ''', (start_date, collection))
+            else:
+                cursor.execute('''
+                    SELECT * FROM practice_sessions
+                    WHERE date >= ?
+                    ORDER BY date DESC, start_time DESC
+                ''', (start_date,))
+
         sessions = [dict(row) for row in cursor.fetchall()]
         conn.close()
         return jsonify(sessions)
@@ -179,7 +190,6 @@ def create_session():
         data = request.json
         conn = get_db()
         cursor = conn.cursor()
-        
         cursor.execute('''
             INSERT INTO practice_sessions 
             (date, start_time, end_time, duration, collection, piece, section, bpm, 
@@ -188,7 +198,6 @@ def create_session():
         ''', (data['date'], data['start_time'], data['end_time'], data['duration'],
               data['collection'], data['piece'], data['section'], data['bpm'],
               data['practice_type'], data['pause_count'], data['notes']))
-        
         conn.commit()
         session_id = cursor.lastrowid
         conn.close()
@@ -203,7 +212,6 @@ def update_session(session_id):
         data = request.json
         conn = get_db()
         cursor = conn.cursor()
-        
         cursor.execute('''
             UPDATE practice_sessions 
             SET date=?, start_time=?, end_time=?, duration=?, collection=?, 
@@ -212,7 +220,6 @@ def update_session(session_id):
         ''', (data['date'], data['start_time'], data['end_time'], data['duration'],
               data['collection'], data['piece'], data['section'], data['bpm'],
               data['practice_type'], data['pause_count'], data['notes'], session_id))
-        
         conn.commit()
         conn.close()
         return jsonify({'success': True})
@@ -238,16 +245,13 @@ def get_today_stats():
         today = get_local_today()
         conn = get_db()
         cursor = conn.cursor()
-        
         cursor.execute('''
             SELECT COUNT(*), SUM(duration), SUM(pause_count)
             FROM practice_sessions
             WHERE date = ?
         ''', (today,))
-        
         result = cursor.fetchone()
         conn.close()
-        
         return jsonify({
             'count': result[0] or 0,
             'duration': result[1] or 0,
@@ -260,75 +264,98 @@ def get_today_stats():
 def get_period_stats():
     try:
         days = request.args.get('days', 30, type=int)
-        start_date = (get_local_now() - timedelta(days=days)).strftime('%Y-%m-%d')
-        
+
         conn = get_db()
         cursor = conn.cursor()
-        
-        cursor.execute('''
-            SELECT SUM(duration), COUNT(*), AVG(pause_count)
-            FROM practice_sessions
-            WHERE date >= ?
-        ''', (start_date,))
-        total_stats = cursor.fetchone()
-        
-        prev_start = (get_local_now() - timedelta(days=days*2)).strftime('%Y-%m-%d')
-        prev_end = (get_local_now() - timedelta(days=days+1)).strftime('%Y-%m-%d')
-        cursor.execute('''
-            SELECT SUM(duration)
-            FROM practice_sessions
-            WHERE date >= ? AND date <= ?
-        ''', (prev_start, prev_end))
-        prev_duration = cursor.fetchone()[0] or 0
-        
-        current_duration = total_stats[0] or 0
-        if prev_duration > 0:
-            change_percent = ((current_duration - prev_duration) / prev_duration) * 100
+
+        if days >= 36500:
+            # 全部数据
+            cursor.execute('''
+                SELECT SUM(duration), COUNT(*)
+                FROM practice_sessions
+            ''')
+            total_stats = cursor.fetchone()
+            current_duration = total_stats[0] or 0
+            change_percent = 0
+
+            # ✅ 平均每日练习时长：按日汇总后求平均
+            cursor.execute('''
+                SELECT AVG(daily_total)
+                FROM (
+                    SELECT date, SUM(duration) AS daily_total
+                    FROM practice_sessions
+                    GROUP BY date
+                )
+            ''')
+            avg_row = cursor.fetchone()
+
         else:
-            change_percent = 100 if current_duration > 0 else 0
-        
-        # 修复连续打卡计算逻辑
+            start_date = (get_local_now() - timedelta(days=days)).strftime('%Y-%m-%d')
+
+            cursor.execute('''
+                SELECT SUM(duration), COUNT(*)
+                FROM practice_sessions
+                WHERE date >= ?
+            ''', (start_date,))
+            total_stats = cursor.fetchone()
+            current_duration = total_stats[0] or 0
+
+            # 环比
+            prev_start = (get_local_now() - timedelta(days=days * 2)).strftime('%Y-%m-%d')
+            prev_end = (get_local_now() - timedelta(days=days + 1)).strftime('%Y-%m-%d')
+            cursor.execute('''
+                SELECT SUM(duration)
+                FROM practice_sessions
+                WHERE date >= ? AND date <= ?
+            ''', (prev_start, prev_end))
+            prev_duration = cursor.fetchone()[0] or 0
+
+            if prev_duration > 0:
+                change_percent = ((current_duration - prev_duration) / prev_duration) * 100
+            else:
+                change_percent = 100 if current_duration > 0 else 0
+
+            # ✅ 平均每日练习时长：只统计有练习记录的天，按日汇总后求平均
+            cursor.execute('''
+                SELECT AVG(daily_total)
+                FROM (
+                    SELECT date, SUM(duration) AS daily_total
+                    FROM practice_sessions
+                    WHERE date >= ?
+                    GROUP BY date
+                )
+            ''', (start_date,))
+            avg_row = cursor.fetchone()
+
+        # 平均每日练习时长（秒 → 分钟）
+        avg_daily_seconds = avg_row[0] or 0
+        avg_daily_minutes = round(avg_daily_seconds / 60, 1)
+
+        # 连续打卡计算
         cursor.execute('SELECT DISTINCT date FROM practice_sessions ORDER BY date DESC')
         dates = [row[0] for row in cursor.fetchall()]
         consecutive = 0
-        
+
         if dates:
-            # 获取今天和昨天的日期
             today = get_local_now().date()
             yesterday = today - timedelta(days=1)
-            
-            # 将字符串日期转换为 date 对象
             practice_dates = [datetime.strptime(d, '%Y-%m-%d').date() for d in dates]
-            
-            # 检查最近一次打卡是今天还是昨天
+
             if practice_dates[0] == today or practice_dates[0] == yesterday:
-                # 从最近一次打卡日期开始计算连续天数
                 check_date = practice_dates[0]
-                
                 for practice_date in practice_dates:
                     if practice_date == check_date:
                         consecutive += 1
                         check_date = check_date - timedelta(days=1)
                     else:
-                        # 检查是否有跳过的日期
-                        while check_date > practice_date:
-                            # 有断签，停止计算
-                            break
-                            check_date = check_date - timedelta(days=1)
-                        
-                        if check_date == practice_date:
-                            consecutive += 1
-                            check_date = check_date - timedelta(days=1)
-                        else:
-                            # 断签了，停止
-                            break
-        
+                        break
+
         conn.close()
-        
+
         return jsonify({
             'total_duration': current_duration,
             'total_count': total_stats[1] or 0,
-            'avg_pause': round(total_stats[2] or 0, 1),
+            'avg_daily_minutes': avg_daily_minutes,
             'consecutive_days': consecutive,
             'change_percent': round(change_percent, 1)
         })
@@ -337,16 +364,12 @@ def get_period_stats():
 
 @app.route('/api/heatmap-data', methods=['GET'])
 def get_heatmap_data():
-    """获取当前年份全年热力图数据"""
     try:
-        # 获取当前年份的1月1日到12月31日
         current_year = get_local_now().year
         start_date = f'{current_year}-01-01'
         end_date = f'{current_year}-12-31'
-        
         conn = get_db()
         cursor = conn.cursor()
-        
         cursor.execute('''
             SELECT date, SUM(duration) as total_duration
             FROM practice_sessions
@@ -354,11 +377,9 @@ def get_heatmap_data():
             GROUP BY date
             ORDER BY date
         ''', (start_date, end_date))
-        
         data = {}
         for row in cursor.fetchall():
             data[row[0]] = row[1] / 60
-        
         conn.close()
         return jsonify(data)
     except Exception as e:
@@ -366,40 +387,44 @@ def get_heatmap_data():
 
 @app.route('/api/trend-data', methods=['GET'])
 def get_trend_data():
-    """获取趋势对比数据"""
     try:
         days = request.args.get('days', 30, type=int)
-        
         conn = get_db()
         cursor = conn.cursor()
-        
-        current_start = (get_local_now() - timedelta(days=days)).strftime('%Y-%m-%d')
-        cursor.execute('''
-            SELECT date, SUM(duration) as total_duration
-            FROM practice_sessions
-            WHERE date >= ?
-            GROUP BY date
-            ORDER BY date
-        ''', (current_start,))
-        current_data = {row[0]: row[1] / 60 for row in cursor.fetchall()}
-        
-        prev_start = (get_local_now() - timedelta(days=days*2)).strftime('%Y-%m-%d')
-        prev_end = (get_local_now() - timedelta(days=days+1)).strftime('%Y-%m-%d')
-        cursor.execute('''
-            SELECT date, SUM(duration) as total_duration
-            FROM practice_sessions
-            WHERE date >= ? AND date <= ?
-            GROUP BY date
-            ORDER BY date
-        ''', (prev_start, prev_end))
-        prev_data = {row[0]: row[1] / 60 for row in cursor.fetchall()}
-        
+
+        if days >= 36500:
+            cursor.execute('''
+                SELECT date, SUM(duration) as total_duration
+                FROM practice_sessions
+                GROUP BY date
+                ORDER BY date
+            ''')
+            current_data = {row[0]: row[1] / 60 for row in cursor.fetchall()}
+            prev_data = {}
+        else:
+            current_start = (get_local_now() - timedelta(days=days)).strftime('%Y-%m-%d')
+            cursor.execute('''
+                SELECT date, SUM(duration) as total_duration
+                FROM practice_sessions
+                WHERE date >= ?
+                GROUP BY date
+                ORDER BY date
+            ''', (current_start,))
+            current_data = {row[0]: row[1] / 60 for row in cursor.fetchall()}
+
+            prev_start = (get_local_now() - timedelta(days=days * 2)).strftime('%Y-%m-%d')
+            prev_end = (get_local_now() - timedelta(days=days + 1)).strftime('%Y-%m-%d')
+            cursor.execute('''
+                SELECT date, SUM(duration) as total_duration
+                FROM practice_sessions
+                WHERE date >= ? AND date <= ?
+                GROUP BY date
+                ORDER BY date
+            ''', (prev_start, prev_end))
+            prev_data = {row[0]: row[1] / 60 for row in cursor.fetchall()}
+
         conn.close()
-        
-        return jsonify({
-            'current': current_data,
-            'previous': prev_data
-        })
+        return jsonify({'current': current_data, 'previous': prev_data})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -408,10 +433,8 @@ def export_data():
     try:
         if not os.path.exists(DB_PATH):
             return jsonify({'error': '数据库文件不存在'}), 404
-        
         timestamp = get_local_now().strftime('%Y%m%d_%H%M%S')
         filename = f'piano_practice_backup_{timestamp}.db'
-        
         return send_file(
             DB_PATH,
             mimetype='application/octet-stream',
@@ -422,13 +445,10 @@ def export_data():
         try:
             with open(DB_PATH, 'rb') as f:
                 db_data = f.read()
-            
             memory_file = BytesIO(db_data)
             memory_file.seek(0)
-            
             timestamp = get_local_now().strftime('%Y%m%d_%H%M%S')
             filename = f'piano_practice_backup_{timestamp}.db'
-            
             return send_file(
                 memory_file,
                 mimetype='application/octet-stream',
@@ -443,29 +463,23 @@ def export_data():
 def import_data():
     if 'file' not in request.files:
         return jsonify({'success': False, 'error': '没有上传文件'}), 400
-    
     file = request.files['file']
     if file.filename == '':
         return jsonify({'success': False, 'error': '文件名为空'}), 400
-    
     if not file.filename.endswith('.db'):
         return jsonify({'success': False, 'error': '只支持.db文件'}), 400
-    
     try:
         backup_filename = f'piano_practice_backup_{get_local_now().strftime("%Y%m%d_%H%M%S")}.db'
         backup_path = os.path.join(BASE_DIR, backup_filename)
         shutil.copy2(DB_PATH, backup_path)
-        
         temp_path = os.path.join(BASE_DIR, 'temp_upload.db')
         file.save(temp_path)
-        
         try:
             test_conn = sqlite3.connect(temp_path)
             test_cursor = test_conn.cursor()
             test_cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
             tables = [row[0] for row in test_cursor.fetchall()]
             test_conn.close()
-            
             if 'practice_sessions' not in tables or 'settings' not in tables:
                 os.remove(temp_path)
                 return jsonify({'success': False, 'error': '数据库文件格式不正确'}), 400
@@ -473,13 +487,11 @@ def import_data():
             if os.path.exists(temp_path):
                 os.remove(temp_path)
             return jsonify({'success': False, 'error': f'无效的数据库文件: {str(e)}'}), 400
-        
         if os.path.exists(DB_PATH):
             os.remove(DB_PATH)
         os.rename(temp_path, DB_PATH)
-        
         return jsonify({
-            'success': True, 
+            'success': True,
             'message': f'数据导入成功！原数据已备份到: {backup_filename}'
         })
     except Exception as e:
