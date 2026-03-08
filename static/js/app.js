@@ -75,7 +75,6 @@ function updateUIBasedOnAuth() {
     if (readonlyNotice) {
         readonlyNotice.style.display = isLoggedIn ? 'none' : 'block';
     }
-    
     const settingsNotice = document.getElementById('settings-readonly-notice');
     if (settingsNotice) {
         settingsNotice.style.display = isLoggedIn ? 'none' : 'block';
@@ -95,16 +94,13 @@ function initLogin() {
 async function handleLogin() {
     const password = document.getElementById('password-input').value;
     const errorDiv = document.getElementById('login-error');
-    
     try {
         const response = await fetch('/api/login', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({password})
         });
-        
         const data = await response.json();
-        
         if (data.success) {
             isLoggedIn = true;
             updateAuthUI();
@@ -125,10 +121,7 @@ async function handleLogin() {
 }
 
 async function handleLogout() {
-    if (!confirm('确定要退出登录吗？')) {
-        return;
-    }
-    
+    if (!confirm('确定要退出登录吗？')) return;
     try {
         await fetch('/api/logout', {method: 'POST'});
         isLoggedIn = false;
@@ -144,9 +137,7 @@ async function handleLogout() {
 async function requireLogin(action) {
     if (!isLoggedIn) {
         const doLogin = confirm('此操作需要登录。是否前往登录页面？');
-        if (doLogin) {
-            showPage('login');
-        }
+        if (doLogin) showPage('login');
         return false;
     }
     return true;
@@ -164,17 +155,11 @@ function initNavigation() {
 }
 
 function showPage(pageName) {
-    document.querySelectorAll('.page').forEach(page => {
-        page.classList.remove('active');
-    });
-    
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    
+    document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
     document.getElementById(`${pageName}-page`).classList.add('active');
     document.querySelector(`[data-page="${pageName}"]`).classList.add('active');
-    
+
     if (pageName === 'history') {
         loadHistory();
         loadTodayHistoryStats();
@@ -191,22 +176,19 @@ function showPage(pageName) {
 async function loadSettings() {
     const response = await fetch('/api/settings');
     settings = await response.json();
-    
+
     updateDatalist('collections-list', settings.collections || []);
     updateDatalist('pieces-list', settings.pieces || []);
     updateDatalist('sections-list', settings.sections || []);
-    
+
     const practiceTypes = settings.practice_types || [];
-    const typeSelect = document.getElementById('practice-type');
-    typeSelect.innerHTML = practiceTypes.map(type => 
+    document.getElementById('practice-type').innerHTML = practiceTypes.map(type =>
         `<option value="${type}">${type}</option>`
     ).join('');
-    
-    const recordTypeSelect = document.getElementById('record-type');
-    recordTypeSelect.innerHTML = practiceTypes.map(type => 
+    document.getElementById('record-type').innerHTML = practiceTypes.map(type =>
         `<option value="${type}">${type}</option>`
     ).join('');
-    
+
     const collectionFilter = document.getElementById('collection-filter');
     collectionFilter.innerHTML = '<option value="">全部</option>' +
         settings.collections.map(c => `<option value="${c}">${c}</option>`).join('');
@@ -214,9 +196,7 @@ async function loadSettings() {
 
 function updateDatalist(id, options) {
     const datalist = document.getElementById(id);
-    datalist.innerHTML = options.map(opt => 
-        `<option value="${opt}">`
-    ).join('');
+    datalist.innerHTML = options.map(opt => `<option value="${opt}">`).join('');
 }
 
 async function saveSettings(key, value) {
@@ -238,21 +218,20 @@ function initTimer() {
 
 async function startTimer() {
     if (!await requireLogin('开始练习')) return;
-    
     if (!validateForm()) return;
-    
+
     isRunning = true;
     startTime = Date.now();
     elapsedSeconds = 0;
     pauseCount = 0;
-    
+
     document.getElementById('start-btn').disabled = true;
     document.getElementById('pause-btn').disabled = false;
     document.getElementById('stop-btn').disabled = false;
-    
+
     document.querySelectorAll('.practice-form input, .practice-form select, .practice-form textarea')
         .forEach(el => el.disabled = true);
-    
+
     updateTimer();
 }
 
@@ -273,9 +252,9 @@ function pauseTimer() {
 async function stopTimer() {
     isRunning = false;
     if (timerInterval) clearInterval(timerInterval);
-    
+
     await savePracticeSession();
-    
+
     elapsedSeconds = 0;
     pauseCount = 0;
     document.getElementById('timer').textContent = '00:00:00';
@@ -284,30 +263,30 @@ async function stopTimer() {
     document.getElementById('pause-btn').disabled = true;
     document.getElementById('pause-btn').textContent = '暂停';
     document.getElementById('stop-btn').disabled = true;
-    
+
     document.querySelectorAll('.practice-form input, .practice-form select, .practice-form textarea')
         .forEach(el => el.disabled = false);
-    
+
     document.getElementById('collection').value = '';
     document.getElementById('piece').value = '';
     document.getElementById('section').value = '';
     document.getElementById('bpm').value = '';
     document.getElementById('notes').value = '';
-    
+
     loadTodayStats();
 }
 
 function updateTimer() {
     if (!isRunning) return;
-    
+
     elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
     const hours = Math.floor(elapsedSeconds / 3600);
     const minutes = Math.floor((elapsedSeconds % 3600) / 60);
     const seconds = elapsedSeconds % 60;
-    
-    document.getElementById('timer').textContent = 
+
+    document.getElementById('timer').textContent =
         `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-    
+
     timerInterval = setTimeout(updateTimer, 1000);
 }
 
@@ -324,11 +303,9 @@ function validateForm() {
 
 async function savePracticeSession() {
     const now = new Date();
-    // 用开始时间计算 startDateTime
     const startDateTime = new Date(now - elapsedSeconds * 1000);
-    
+
     const data = {
-        // 以开始时间的日期为准
         date: getLocalDateString(startDateTime),
         start_time: getLocalTimeString(startDateTime),
         end_time: getLocalTimeString(now),
@@ -341,20 +318,18 @@ async function savePracticeSession() {
         pause_count: pauseCount,
         notes: document.getElementById('notes').value
     };
-    
+
     try {
         const response = await fetch('/api/sessions', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(data)
         });
-        
         if (response.status === 401) {
             alert('保存失败：需要登录权限');
             showPage('login');
             return;
         }
-        
         if (response.ok) {
             alert(`练习记录已保存！\n时长: ${Math.floor(elapsedSeconds/60)} 分 ${elapsedSeconds%60} 秒`);
         }
@@ -368,16 +343,14 @@ async function savePracticeSession() {
 async function loadTodayStats() {
     const response = await fetch('/api/stats/today');
     const stats = await response.json();
-    
     const minutes = Math.floor(stats.duration / 60);
-    document.getElementById('today-stats').innerHTML = 
+    document.getElementById('today-stats').innerHTML =
         `今日已练习: ${stats.count} 次 | 总时长: ${minutes} 分钟`;
 }
 
 async function loadTodayHistoryStats() {
     const response = await fetch('/api/stats/today');
     const stats = await response.json();
-    
     const minutes = Math.floor(stats.duration / 60);
     document.getElementById('today-history-stats').innerHTML = `
         <div class="stat-card">
@@ -398,10 +371,9 @@ async function loadTodayHistoryStats() {
 async function loadTodayStatsPage() {
     const response = await fetch('/api/stats/today');
     const stats = await response.json();
-    
     const minutes = Math.floor(stats.duration / 60);
     const today = getLocalDateString(new Date());
-    
+
     document.getElementById('today-stats-page').innerHTML = `
         <h3 style="text-align: center; margin-bottom: 15px;">📅 今日统计 (${today})</h3>
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
@@ -431,11 +403,11 @@ function initFilters() {
 async function loadHistory() {
     const days = document.getElementById('date-range').value;
     const collection = document.getElementById('collection-filter').value;
-    
+
     const url = `/api/sessions?days=${days}${collection ? `&collection=${collection}` : ''}`;
     const response = await fetch(url);
     const sessions = await response.json();
-    
+
     const tbody = document.getElementById('history-tbody');
     tbody.innerHTML = sessions.map(s => `
         <tr>
@@ -453,7 +425,7 @@ async function loadHistory() {
             <td>${(s.notes || '').substring(0, 30)}${s.notes && s.notes.length > 30 ? '...' : ''}</td>
         </tr>
     `).join('');
-    
+
     document.getElementById('select-all').addEventListener('change', (e) => {
         document.querySelectorAll('.record-checkbox').forEach(cb => {
             cb.checked = e.target.checked;
@@ -462,11 +434,7 @@ async function loadHistory() {
 }
 
 function showAddRecordDialog() {
-    if (!isLoggedIn) {
-        requireLogin('新增记录');
-        return;
-    }
-    
+    if (!isLoggedIn) { requireLogin('新增记录'); return; }
     document.getElementById('dialog-title').textContent = '新增练习记录';
     document.getElementById('record-form').reset();
     document.getElementById('record-id').value = '';
@@ -476,24 +444,17 @@ function showAddRecordDialog() {
 
 async function editSelectedRecord() {
     if (!await requireLogin('编辑记录')) return;
-    
+
     const selected = Array.from(document.querySelectorAll('.record-checkbox:checked'));
-    if (selected.length === 0) {
-        alert('请先选择要编辑的记录！');
-        return;
-    }
-    if (selected.length > 1) {
-        alert('一次只能编辑一条记录！');
-        return;
-    }
-    
+    if (selected.length === 0) { alert('请先选择要编辑的记录！'); return; }
+    if (selected.length > 1) { alert('一次只能编辑一条记录！'); return; }
+
     const id = selected[0].dataset.id;
-    const response = await fetch(`/api/sessions?days=10000`);
+    const response = await fetch(`/api/sessions?days=36500`);
     const sessions = await response.json();
     const record = sessions.find(s => s.id == id);
-    
     if (!record) return;
-    
+
     document.getElementById('dialog-title').textContent = '编辑练习记录';
     document.getElementById('record-id').value = record.id;
     document.getElementById('record-date').value = record.date;
@@ -507,27 +468,20 @@ async function editSelectedRecord() {
     document.getElementById('record-type').value = record.practice_type;
     document.getElementById('record-pause').value = record.pause_count;
     document.getElementById('record-notes').value = record.notes || '';
-    
     document.getElementById('record-dialog').classList.add('show');
 }
 
 async function deleteSelectedRecords() {
     if (!await requireLogin('删除记录')) return;
-    
+
     const selected = Array.from(document.querySelectorAll('.record-checkbox:checked'));
-    if (selected.length === 0) {
-        alert('请先选择要删除的记录！');
-        return;
-    }
-    
-    if (!confirm(`确定要删除选中的 ${selected.length} 条记录吗？`)) {
-        return;
-    }
-    
+    if (selected.length === 0) { alert('请先选择要删除的记录！'); return; }
+    if (!confirm(`确定要删除选中的 ${selected.length} 条记录吗？`)) return;
+
     for (const checkbox of selected) {
         await fetch(`/api/sessions/${checkbox.dataset.id}`, {method: 'DELETE'});
     }
-    
+
     alert('记录已删除！');
     loadHistory();
     loadTodayHistoryStats();
@@ -539,14 +493,13 @@ function closeRecordDialog() {
 
 document.getElementById('record-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    
     if (!isLoggedIn) {
         alert('需要登录权限');
         closeRecordDialog();
         showPage('login');
         return;
     }
-    
+
     const data = {
         date: document.getElementById('record-date').value,
         start_time: document.getElementById('record-start').value,
@@ -560,9 +513,9 @@ document.getElementById('record-form').addEventListener('submit', async (e) => {
         pause_count: parseInt(document.getElementById('record-pause').value),
         notes: document.getElementById('record-notes').value
     };
-    
+
     const id = document.getElementById('record-id').value;
-    
+
     try {
         if (id) {
             await fetch(`/api/sessions/${id}`, {
@@ -579,7 +532,6 @@ document.getElementById('record-form').addEventListener('submit', async (e) => {
             });
             alert('记录已添加！');
         }
-        
         closeRecordDialog();
         loadHistory();
         loadTodayHistoryStats();
@@ -592,14 +544,25 @@ document.getElementById('record-form').addEventListener('submit', async (e) => {
 
 async function loadStats() {
     const days = document.getElementById('stats-period').value;
-    
+
     const response = await fetch(`/api/stats/period?days=${days}`);
     const stats = await response.json();
-    
+
     const hours = (stats.total_duration / 3600).toFixed(1);
     const changeIcon = stats.change_percent >= 0 ? '📈' : '📉';
     const changeColor = stats.change_percent >= 0 ? '#4caf50' : '#f44336';
-    
+
+    // ✅ 平均每日练习时长显示
+    const avgMin = stats.avg_daily_minutes || 0;
+    let avgDisplay = '';
+    if (avgMin >= 60) {
+        const h = Math.floor(avgMin / 60);
+        const m = Math.round(avgMin % 60);
+        avgDisplay = m > 0 ? `${h}时${m}分` : `${h}小时`;
+    } else {
+        avgDisplay = `${avgMin} 分钟`;
+    }
+
     document.getElementById('period-stats').innerHTML = `
         <div class="stat-card">
             <h3>总练习时长</h3>
@@ -610,8 +573,8 @@ async function loadStats() {
             <div class="value">${stats.total_count}</div>
         </div>
         <div class="stat-card">
-            <h3>平均暂停次数</h3>
-            <div class="value">${stats.avg_pause}</div>
+            <h3>平均每日练习时长</h3>
+            <div class="value">${avgDisplay}</div>
         </div>
         <div class="stat-card">
             <h3>已连续打卡</h3>
@@ -624,7 +587,7 @@ async function loadStats() {
             </div>
         </div>
     `;
-    
+
     await loadHeatmap();
     await loadTrendChart(days);
 }
@@ -638,43 +601,43 @@ function getHeatLevel(minutes) {
     return 4;
 }
 
-// GitHub风格热力图 - 显示全年数据，月份精准对齐
+// GitHub风格热力图
 async function loadHeatmap() {
     const response = await fetch('/api/heatmap-data');
     const data = await response.json();
-    
+
     const tooltip = document.getElementById('heatmap-tooltip');
-    
+
     const now = new Date();
     const currentYear = now.getFullYear();
     const startDate = new Date(currentYear, 0, 1);
     const endDate = new Date(currentYear, 11, 31);
-    
+
     const startDay = startDate.getDay();
     const adjustedStart = new Date(startDate);
     adjustedStart.setDate(startDate.getDate() - startDay);
-    
+
     const totalDays = Math.ceil((endDate - adjustedStart) / (1000 * 60 * 60 * 24)) + 1;
     const weeks = Math.ceil(totalDays / 7);
-    
+
     const heatmapData = [];
     const monthLabels = [];
-    
+
     for (let week = 0; week < weeks; week++) {
         const weekData = [];
         let weekMonth = '';
-        
+
         for (let day = 0; day < 7; day++) {
             const currentDate = new Date(adjustedStart);
             currentDate.setDate(adjustedStart.getDate() + week * 7 + day);
-            
+
             const dateStr = getLocalDateString(currentDate);
             const minutes = data[dateStr] || 0;
-            
+
             if (currentDate >= startDate && currentDate <= endDate && currentDate.getDate() === 1) {
                 weekMonth = currentDate.toLocaleDateString('en-US', { month: 'short' });
             }
-            
+
             if (currentDate >= startDate && currentDate <= endDate) {
                 weekData.push({
                     date: dateStr,
@@ -687,38 +650,37 @@ async function loadHeatmap() {
                 weekData.push(null);
             }
         }
-        
+
         heatmapData.push(weekData);
         monthLabels.push(weekMonth);
     }
-    
+
     const monthsContainer = document.getElementById('heatmap-months');
     monthsContainer.innerHTML = '';
-    
     monthLabels.forEach((monthText) => {
         const monthLabel = document.createElement('div');
         monthLabel.className = 'month-label';
         monthLabel.textContent = monthText;
         monthsContainer.appendChild(monthLabel);
     });
-    
+
     const gridContainer = document.getElementById('heatmap-grid');
     gridContainer.innerHTML = '';
-    
+
     heatmapData.forEach((weekData) => {
         const column = document.createElement('div');
         column.className = 'heatmap-column';
-        
+
         weekData.forEach((cellData) => {
             const cell = document.createElement('div');
             cell.className = 'heatmap-cell';
-            
+
             if (cellData && cellData.isCurrentYear) {
                 cell.setAttribute('data-level', cellData.level);
                 cell.setAttribute('data-date', cellData.date);
                 cell.setAttribute('data-minutes', cellData.minutes);
-                
-                cell.addEventListener('mouseenter', (e) => {
+
+                cell.addEventListener('mouseenter', () => {
                     const rect = cell.getBoundingClientRect();
                     tooltip.innerHTML = `
                         <strong>${cellData.displayDate}</strong><br>
@@ -729,62 +691,55 @@ async function loadHeatmap() {
                     tooltip.style.transform = 'translateX(-50%)';
                     tooltip.classList.add('show');
                 });
-                
+
                 cell.addEventListener('mouseleave', () => {
                     tooltip.classList.remove('show');
                 });
             } else {
                 cell.style.visibility = 'hidden';
             }
-            
+
             column.appendChild(cell);
         });
-        
+
         gridContainer.appendChild(column);
     });
 }
 
-// ✅ 修复：趋势对比图，全部使用本地时区日期，避免 UTC 偏移导致的日期错位
+// 趋势对比图
 async function loadTrendChart(days) {
     const response = await fetch(`/api/trend-data?days=${days}`);
     const data = await response.json();
-    
+
     const labels = [];
     const currentData = [];
     const previousData = [];
-    
-    // ✅ 当前周期：用本地日期逐天遍历
+
     const endDate = new Date();
     endDate.setHours(0, 0, 0, 0);
     const startDate = new Date(endDate);
     startDate.setDate(endDate.getDate() - days + 1);
-    
+
     for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-        // ✅ 使用 getLocalDateString 而非 toISOString，避免 UTC 偏移
         const dateStr = getLocalDateString(d);
         const displayDate = `${d.getMonth() + 1}/${d.getDate()}`;
         labels.push(displayDate);
         currentData.push(data.current[dateStr] || 0);
     }
-    
-    // ✅ 上一周期：同样使用本地日期
+
     const prevEndDate = new Date(startDate);
     prevEndDate.setDate(startDate.getDate() - 1);
     const prevStartDate = new Date(prevEndDate);
     prevStartDate.setDate(prevEndDate.getDate() - days + 1);
-    
+
     for (let d = new Date(prevStartDate); d <= prevEndDate; d.setDate(d.getDate() + 1)) {
-        // ✅ 使用 getLocalDateString 而非 toISOString，避免 UTC 偏移
         const dateStr = getLocalDateString(d);
         previousData.push(data.previous[dateStr] || 0);
     }
-    
-    if (trendChart) {
-        trendChart.destroy();
-    }
-    
+
+    if (trendChart) trendChart.destroy();
+
     const ctx = document.getElementById('trend-chart').getContext('2d');
-    
     trendChart = new Chart(ctx, {
         type: 'line',
         data: {
@@ -817,9 +772,7 @@ async function loadTrendChart(days) {
             plugins: {
                 legend: {
                     display: true,
-                    labels: {
-                        color: '#ffffff'
-                    }
+                    labels: { color: '#ffffff' }
                 },
                 tooltip: {
                     callbacks: {
@@ -831,24 +784,14 @@ async function loadTrendChart(days) {
             },
             scales: {
                 x: {
-                    grid: {
-                        color: '#3a3a3a'
-                    },
-                    ticks: {
-                        color: '#ffffff',
-                        maxRotation: 45,
-                        minRotation: 45
-                    }
+                    grid: { color: '#3a3a3a' },
+                    ticks: { color: '#ffffff', maxRotation: 45, minRotation: 45 }
                 },
                 y: {
-                    grid: {
-                        color: '#3a3a3a'
-                    },
+                    grid: { color: '#3a3a3a' },
                     ticks: {
                         color: '#ffffff',
-                        callback: function(value) {
-                            return value + ' min';
-                        }
+                        callback: function(value) { return value + ' min'; }
                     },
                     beginAtZero: true
                 }
@@ -871,12 +814,8 @@ function loadSettingsPage() {
 function renderOptionsWithDrag(key, options) {
     const editorId = key.replace(/_/g, '-') + '-editor';
     const editor = document.getElementById(editorId);
-    
-    if (!editor) {
-        console.error(`找不到元素: ${editorId}`);
-        return;
-    }
-    
+    if (!editor) { console.error(`找不到元素: ${editorId}`); return; }
+
     editor.innerHTML = options.map((opt, idx) => `
         <div class="option-item" draggable="true" data-index="${idx}">
             <span class="drag-handle">⋮⋮</span>
@@ -886,51 +825,38 @@ function renderOptionsWithDrag(key, options) {
             </div>
         </div>
     `).join('');
-    
+
     initDragAndDrop(editor, key);
 }
 
 function initDragAndDrop(container, key) {
     const items = container.querySelectorAll('.option-item');
     let draggedItem = null;
-    
+
     items.forEach(item => {
         item.addEventListener('dragstart', (e) => {
             draggedItem = item;
             item.classList.add('dragging');
             e.dataTransfer.effectAllowed = 'move';
         });
-        
-        item.addEventListener('dragend', (e) => {
+        item.addEventListener('dragend', () => {
             item.classList.remove('dragging');
-            container.querySelectorAll('.option-item').forEach(i => {
-                i.classList.remove('drag-over');
-            });
+            container.querySelectorAll('.option-item').forEach(i => i.classList.remove('drag-over'));
         });
-        
         item.addEventListener('dragover', (e) => {
             e.preventDefault();
-            if (draggedItem !== item) {
-                item.classList.add('drag-over');
-            }
+            if (draggedItem !== item) item.classList.add('drag-over');
         });
-        
-        item.addEventListener('dragleave', (e) => {
-            item.classList.remove('drag-over');
-        });
-        
+        item.addEventListener('dragleave', () => item.classList.remove('drag-over'));
         item.addEventListener('drop', async (e) => {
             e.preventDefault();
             item.classList.remove('drag-over');
-            
             if (draggedItem !== item) {
                 const fromIndex = parseInt(draggedItem.dataset.index);
                 const toIndex = parseInt(item.dataset.index);
-                
                 const options = settings[key] || [];
                 const [removed] = options.splice(fromIndex, 1);
                 options.splice(toIndex, 0, removed);
-                
                 await saveSettings(key, options);
                 loadSettingsPage();
             }
@@ -939,18 +865,11 @@ function initDragAndDrop(container, key) {
 }
 
 function addOption(key) {
-    if (!isLoggedIn) {
-        requireLogin('添加选项');
-        return;
-    }
-    
+    if (!isLoggedIn) { requireLogin('添加选项'); return; }
     const value = prompt('请输入新选项:');
     if (value && value.trim()) {
         const options = settings[key] || [];
-        if (options.includes(value.trim())) {
-            alert('该选项已存在！');
-            return;
-        }
+        if (options.includes(value.trim())) { alert('该选项已存在！'); return; }
         options.push(value.trim());
         saveSettings(key, options);
         loadSettingsPage();
@@ -959,37 +878,20 @@ function addOption(key) {
 
 async function updateOption(key, index, value) {
     if (!isLoggedIn) return;
-    
     value = value.trim();
-    if (!value) {
-        alert('选项内容不能为空！');
-        loadSettingsPage();
-        return;
-    }
-    
+    if (!value) { alert('选项内容不能为空！'); loadSettingsPage(); return; }
     const options = settings[key] || [];
     if (options.includes(value) && options[index] !== value) {
-        alert('该选项已存在！');
-        loadSettingsPage();
-        return;
+        alert('该选项已存在！'); loadSettingsPage(); return;
     }
-    
     options[index] = value;
     await saveSettings(key, options);
 }
 
 function deleteOption(key, index) {
-    if (!isLoggedIn) {
-        requireLogin('删除选项');
-        return;
-    }
-    
+    if (!isLoggedIn) { requireLogin('删除选项'); return; }
     const options = settings[key] || [];
-    if (options.length <= 1) {
-        alert('至少保留一个选项！');
-        return;
-    }
-    
+    if (options.length <= 1) { alert('至少保留一个选项！'); return; }
     if (confirm(`确定要删除 '${options[index]}' 吗？`)) {
         options.splice(index, 1);
         saveSettings(key, options);
@@ -1011,32 +913,30 @@ function initImport() {
             showPage('login');
             return;
         }
-        
+
         const file = e.target.files[0];
         if (!file) return;
-        
+
         if (!file.name.endsWith('.db')) {
             alert('只支持.db文件！');
             e.target.value = '';
             return;
         }
-        
+
         if (!confirm('导入数据将覆盖当前所有数据！\n确定要继续吗？')) {
             e.target.value = '';
             return;
         }
-        
+
         const formData = new FormData();
         formData.append('file', file);
-        
+
         try {
             const response = await fetch('/api/import', {
                 method: 'POST',
                 body: formData
             });
-            
             const result = await response.json();
-            
             if (result.success) {
                 alert(result.message + '\n\n页面将刷新以加载新数据。');
                 window.location.reload();
@@ -1046,7 +946,7 @@ function initImport() {
         } catch (error) {
             alert('导入失败: ' + error.message);
         }
-        
+
         e.target.value = '';
     });
 }
