@@ -302,7 +302,7 @@ def get_period_stats():
 
             # 环比
             prev_start = (get_local_now() - timedelta(days=days * 2)).strftime('%Y-%m-%d')
-            prev_end = (get_local_now() - timedelta(days=days + 1)).strftime('%Y-%m-%d')
+            prev_end = (get_local_now() - timedelta(days=days)).strftime('%Y-%m-%d')
             cursor.execute('''
                 SELECT SUM(duration)
                 FROM practice_sessions
