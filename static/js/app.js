@@ -218,7 +218,8 @@ function initTimer() {
 
 async function startTimer() {
     if (!await requireLogin('开始练习')) return;
-    if (!validateForm()) return;
+
+    // ✅ 已移除 validateForm() 校验，允许空白表单直接开始计时
 
     isRunning = true;
     startTime = Date.now();
@@ -288,17 +289,6 @@ function updateTimer() {
         `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 
     timerInterval = setTimeout(updateTimer, 1000);
-}
-
-function validateForm() {
-    const fields = ['collection', 'piece', 'section', 'bpm'];
-    for (const field of fields) {
-        if (!document.getElementById(field).value.trim()) {
-            alert(`请填写${field === 'collection' ? '练习曲集' : field === 'piece' ? '练习曲目' : field === 'section' ? '小节段落' : 'BPM'}`);
-            return false;
-        }
-    }
-    return true;
 }
 
 async function savePracticeSession() {
@@ -552,7 +542,6 @@ async function loadStats() {
     const changeIcon = stats.change_percent >= 0 ? '📈' : '📉';
     const changeColor = stats.change_percent >= 0 ? '#4caf50' : '#f44336';
 
-    // ✅ 平均每日练习时长显示
     const avgMin = stats.avg_daily_minutes || 0;
     let avgDisplay = '';
     if (avgMin >= 60) {
