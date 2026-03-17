@@ -22,7 +22,7 @@
                     <span id="login-status">🔒 登录</span>
                 </button>
             </nav>
-            
+
             <div id="auth-status" class="auth-status">
                 <div id="readonly-badge" class="status-badge readonly">
                     👁️ 只读模式
@@ -36,30 +36,30 @@
         <main class="main-content">
             <div id="practice-page" class="page active">
                 <h2 class="page-title">今日练习</h2>
-                
+
                 <div id="readonly-notice" class="notice-box warning">
                     ⚠️ 当前为只读模式，需要<a href="#" onclick="showPage('login'); return false;">登录</a>后才能记录练习
                 </div>
-                
+
                 <div class="practice-form">
                     <div class="form-group">
                         <label>练习曲集:</label>
-                        <input type="text" id="collection" list="collections-list" required>
+                        <input type="text" id="collection" list="collections-list">
                         <datalist id="collections-list"></datalist>
                     </div>
                     <div class="form-group">
                         <label>练习曲目:</label>
-                        <input type="text" id="piece" list="pieces-list" required>
+                        <input type="text" id="piece" list="pieces-list">
                         <datalist id="pieces-list"></datalist>
                     </div>
                     <div class="form-group">
                         <label>小节段落:</label>
-                        <input type="text" id="section" list="sections-list" required>
+                        <input type="text" id="section" list="sections-list">
                         <datalist id="sections-list"></datalist>
                     </div>
                     <div class="form-group">
                         <label>BPM:</label>
-                        <input type="text" id="bpm" required>
+                        <input type="text" id="bpm">
                     </div>
                     <div class="form-group">
                         <label>练习类型:</label>
@@ -87,7 +87,7 @@
 
             <div id="history-page" class="page">
                 <h2 class="page-title">练习历史</h2>
-                
+
                 <div id="today-history-stats" class="stats-cards"></div>
 
                 <div class="filters">
@@ -139,7 +139,7 @@
 
             <div id="stats-page" class="page">
                 <h2 class="page-title">数据统计</h2>
-                
+
                 <div id="today-stats-page" class="stats-cards"></div>
 
                 <div class="filters">
@@ -194,30 +194,30 @@
 
             <div id="settings-page" class="page">
                 <h2 class="page-title">设置</h2>
-                
+
                 <div id="settings-readonly-notice" class="notice-box warning admin-only-hide">
                     ⚠️ 当前为只读模式，需要<a href="#" onclick="showPage('login'); return false;">登录</a>后才能修改设置
                 </div>
-                
+
                 <div class="settings-container">
                     <div class="settings-section">
                         <h3>练习曲集</h3>
                         <div id="collections-editor" class="options-editor sortable-list"></div>
                         <button class="btn btn-primary btn-sm admin-only" onclick="addOption('collections')">+ 新增</button>
                     </div>
-                    
+
                     <div class="settings-section">
                         <h3>练习曲目</h3>
                         <div id="pieces-editor" class="options-editor sortable-list"></div>
                         <button class="btn btn-primary btn-sm admin-only" onclick="addOption('pieces')">+ 新增</button>
                     </div>
-                    
+
                     <div class="settings-section">
                         <h3>小节段落</h3>
                         <div id="sections-editor" class="options-editor sortable-list"></div>
                         <button class="btn btn-primary btn-sm admin-only" onclick="addOption('sections')">+ 新增</button>
                     </div>
-                    
+
                     <div class="settings-section">
                         <h3>练习类型</h3>
                         <div id="practice-types-editor" class="options-editor sortable-list"></div>
@@ -246,7 +246,7 @@
             <div id="login-page" class="page">
                 <div class="login-container">
                     <h2 class="page-title">🔐 管理员登录</h2>
-                    
+
                     <div id="login-form-container">
                         <div class="login-box">
                             <p class="login-description">
@@ -258,16 +258,16 @@
                                 <li>✅ 修改设置选项</li>
                                 <li>✅ 导入数据</li>
                             </ul>
-                            
+
                             <form id="login-form">
                                 <div class="form-group">
                                     <label>请输入密码:</label>
-                                    <input type="password" id="password-input" class="login-password" 
+                                    <input type="password" id="password-input" class="login-password"
                                            placeholder="请输入密码" required autofocus>
                                 </div>
                                 <button type="submit" class="btn btn-primary btn-block">登录</button>
                             </form>
-                            
+
                             <div id="login-error" class="error-message" style="display: none;"></div>
                         </div>
                     </div>
@@ -296,11 +296,13 @@
                 </div>
                 <div class="form-group">
                     <label>开始时间:</label>
-                    <input type="time" id="record-start" required>
+                    <!-- ✅ 关键修复：加上 step="1" 允许精确到秒 -->
+                    <input type="time" id="record-start" step="1" required>
                 </div>
                 <div class="form-group">
                     <label>结束时间:</label>
-                    <input type="time" id="record-end" required>
+                    <!-- ✅ 关键修复：加上 step="1" 允许精确到秒 -->
+                    <input type="time" id="record-end" step="1" required>
                 </div>
                 <div class="form-group">
                     <label>时长(分钟):</label>
@@ -308,15 +310,15 @@
                 </div>
                 <div class="form-group">
                     <label>练习曲集:</label>
-                    <input type="text" id="record-collection" list="collections-list" required>
+                    <input type="text" id="record-collection" list="collections-list">
                 </div>
                 <div class="form-group">
                     <label>练习曲目:</label>
-                    <input type="text" id="record-piece" list="pieces-list" required>
+                    <input type="text" id="record-piece" list="pieces-list">
                 </div>
                 <div class="form-group">
                     <label>小节段落:</label>
-                    <input type="text" id="record-section" list="sections-list" required>
+                    <input type="text" id="record-section" list="sections-list">
                 </div>
                 <div class="form-group">
                     <label>BPM:</label>
