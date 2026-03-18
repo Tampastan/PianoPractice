@@ -219,8 +219,6 @@ function initTimer() {
 async function startTimer() {
     if (!await requireLogin('开始练习')) return;
 
-    // ✅ 已移除 validateForm() 校验，允许空白表单直接开始计时
-
     isRunning = true;
     startTime = Date.now();
     elapsedSeconds = 0;
@@ -230,8 +228,7 @@ async function startTimer() {
     document.getElementById('pause-btn').disabled = false;
     document.getElementById('stop-btn').disabled = false;
 
-    document.querySelectorAll('.practice-form input, .practice-form select, .practice-form textarea')
-        .forEach(el => el.disabled = true);
+    // ✅ 已移除表单字段禁用逻辑，计时期间可自由编辑所有填写项
 
     updateTimer();
 }
@@ -265,8 +262,7 @@ async function stopTimer() {
     document.getElementById('pause-btn').textContent = '暂停';
     document.getElementById('stop-btn').disabled = true;
 
-    document.querySelectorAll('.practice-form input, .practice-form select, .practice-form textarea')
-        .forEach(el => el.disabled = false);
+    // ✅ 已移除表单字段启用逻辑（对应删除 startTimer 中的禁用）
 
     document.getElementById('collection').value = '';
     document.getElementById('piece').value = '';
